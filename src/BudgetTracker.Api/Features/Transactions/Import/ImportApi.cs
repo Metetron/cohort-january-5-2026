@@ -11,7 +11,9 @@ public static class ImportApi
 {
     public static IEndpointRouteBuilder MapTransactionImportEndpoints(this IEndpointRouteBuilder routes)
     {
-        routes.MapPost("/import", ImportAsync);
+        routes.MapPost("/import", ImportAsync)
+            .DisableAntiforgery() // Disable built-in anti-forgery
+            .AddEndpointFilter<ConditionalAntiforgeryFilter>();;
 
         return routes;
     }
