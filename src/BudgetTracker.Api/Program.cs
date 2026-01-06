@@ -1,6 +1,7 @@
 using BudgetTracker.Api.AntiForgery;
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
+using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using Microsoft.EntityFrameworkCore;
 using BudgetTracker.Api.Infrastructure;
 
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<CsvImporter>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
