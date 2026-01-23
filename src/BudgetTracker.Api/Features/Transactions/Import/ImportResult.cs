@@ -5,9 +5,10 @@ public class ImportResult
     public int TotalRows { get; set; }
     public int ImportedCount { get; set; }
     public int FailedCount { get; set; }
-    public List<string> Errors { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
     public string? SourceFile { get; set; }
     public string ImportSessionHash { get; set; } = string.Empty;
+    public List<TransactionEnhancementResult> Enhancements { get; set; } = [];
     public DateTime ImportedAt { get; set; }
 }
 
