@@ -2,6 +2,7 @@ using Azure.AI.OpenAI;
 using BudgetTracker.Api.AntiForgery;
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
+using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using Microsoft.EntityFrameworkCore;
 using BudgetTracker.Api.Infrastructure;
@@ -100,6 +101,8 @@ builder.Services.AddCors(options =>
 // Configure Azure AI
 builder.Services.Configure<AzureAiConfiguration>(
     builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
+
+builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
 
 // Register IChatClient for Azure OpenAI
 builder.Services.AddSingleton<IChatClient>(sp =>
