@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using BudgetTracker.Api.Infrastructure.Extensions;
 using Microsoft.Extensions.AI;
 
 namespace BudgetTracker.Api.Features.Transactions.Import.Enhancement;
@@ -14,12 +14,6 @@ public partial class TransactionEnhancer : ITransactionEnhancer
 
     private readonly IChatClient _chatClient;
     private readonly ILogger<TransactionEnhancer> _logger;
-    
-    [GeneratedRegex(@"```json\s*([\s\S]*?)\s*```")]
-    private static partial Regex MarkdownJsonRegex();
-    
-    [GeneratedRegex(@"\[[\s\S]*\]")]
-    private static partial Regex JsonArrayRegex();
 
     public TransactionEnhancer(IChatClient chatClient, ILogger<TransactionEnhancer> logger)
     {
@@ -118,7 +112,7 @@ public partial class TransactionEnhancer : ITransactionEnhancer
 
         try
         {
-            var jsonContent = ExtractJsonFromCodeBlock(content);
+            var jsonContent = content.ExtractJsonFromCodeBlock();
             var enhancedDescriptions =
                 JsonSerializer.Deserialize<List<EnhancedTransactionDescription>>(jsonContent, JsonOptions);
 
@@ -143,26 +137,6 @@ public partial class TransactionEnhancer : ITransactionEnhancer
         
         _logger.LogWarning("AI response format was invalid, return original descriptions");
         return CreateFallbackResults(descriptions);
-    }
-
-    private static string ExtractJsonFromCodeBlock(string input)
-    {
-        var match = MarkdownJsonRegex().Match(input);
-
-        if (match.Success)
-        {
-            return match.Groups[1].Value;
-        }
-
-        // Try to find a JSON array directly
-        var arrayMatch = JsonArrayRegex().Match(input);
-        
-        if (arrayMatch.Success)
-        {
-            return arrayMatch.Value;
-        }
-
-        throw new FormatException("Could not extract JSON from the input string");
     }
 
     private static List<EnhancedTransactionDescription> CreateFallbackResults(List<string> descriptions)

@@ -1,6 +1,6 @@
 namespace BudgetTracker.Api.Features.Transactions.Import.Detection;
 
-public interface ICsvStructureDetector
+public interface ICsvDetector
 {
     Task<CsvStructureDetectionResult> DetectStructureAsync(Stream csvStream);
 }
