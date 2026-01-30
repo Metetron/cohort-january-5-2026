@@ -4,6 +4,7 @@ using System.Text;
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Infrastructure;
 using BudgetTracker.Api.AntiForgery;
+using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -27,7 +28,8 @@ public static class ImportApi
 
     private static async Task<Results<Ok<ImportResult>, BadRequest<string>>> ImportAsync(
         IFormFile file, [FromForm] string account,
-        CsvImporter csvImporter, ITransactionEnhancer enhancer, BudgetTrackerContext context, ClaimsPrincipal claimsPrincipal)
+        CsvImporter csvImporter, ITransactionEnhancer enhancer, BudgetTrackerContext context, 
+        ClaimsPrincipal claimsPrincipal, ICsvStructureDetector detectionService)
     {
         var validationResult = ValidateFileInput(file, account);
         if (validationResult != null)
@@ -41,8 +43,25 @@ public static class ImportApi
             var sessionHash = GenerateSessionHash(file.FileName, DateTime.UtcNow);
 
             using var stream = file.OpenReadStream();
-            var (result, transactions) = await csvImporter.ParseCsvAsync(
-                stream, file.FileName, userId, account);
+            
+            var detectionResult = await detectionService.DetectStructureAsync(stream);
+
+            if (detectionResult.ConfidenceScore < 85)
+            {
+                var errorMessage = detectionResult.DetectionMethod == DetectionMethod.AI
+                    ? "Unable to automatically detect CSV structure using AI analysis. Please ensure your CSV contains Date, Description, and Amount columns with recognizable headers."
+                    : "Unable to automatically detect CSV structure. Please ensure your CSV file follows a standard banking format.";
+
+                return TypedResults.BadRequest(errorMessage);
+            }
+
+            stream.Position = 0; // Reset stream position
+            var (importResult, transactions) = await csvImporter.ParseCsvAsync(
+                stream, file.FileName, userId, account, detectionResult);
+
+            // Add detection info to result
+            importResult.DetectionMethod = detectionResult.DetectionMethod.ToString();
+            importResult.DetectionConfidence = detectionResult.ConfidenceScore;
 
             if (transactions.Any())
             {
@@ -76,11 +95,11 @@ public static class ImportApi
                 await context.Transactions.AddRangeAsync(transactions);
                 await context.SaveChangesAsync();
 
-                result.ImportSessionHash = sessionHash;
-                result.Enhancements = enhancementResults;
+                importResult.ImportSessionHash = sessionHash;
+                importResult.Enhancements = enhancementResults;
             }
 
-            return TypedResults.Ok(result);
+            return TypedResults.Ok(importResult);
         }
         catch (Exception ex)
         {

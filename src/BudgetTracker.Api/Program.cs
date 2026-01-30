@@ -2,6 +2,7 @@ using Azure.AI.OpenAI;
 using BudgetTracker.Api.AntiForgery;
 using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
+using BudgetTracker.Api.Features.Transactions.Import.Detection;
 using BudgetTracker.Api.Features.Transactions.Import.Enhancement;
 using BudgetTracker.Api.Features.Transactions.Import.Processing;
 using Microsoft.EntityFrameworkCore;
@@ -103,6 +104,9 @@ builder.Services.Configure<AzureAiConfiguration>(
     builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
 
 builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
+builder.Services.AddScoped<ICsvStructureDetector, CsvStructureDetector>();
+builder.Services.AddScoped<ICsvDetector, CsvDetector>();
+builder.Services.AddScoped<ICsvAnalyzer, CsvAnalyzer>();
 
 // Register IChatClient for Azure OpenAI
 builder.Services.AddSingleton<IChatClient>(sp =>

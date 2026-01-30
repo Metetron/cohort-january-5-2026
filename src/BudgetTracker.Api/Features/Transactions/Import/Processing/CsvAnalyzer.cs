@@ -19,7 +19,7 @@ public class CsvAnalyzer : ICsvAnalyzer
 
         var response = await _chatClient.GetResponseAsync([
             new ChatMessage(ChatRole.System, systemPrompt),
-            new ChatMessage(ChatRole.User, csvContent)
+            new ChatMessage(ChatRole.User, userPrompt)
         ]);
 
         return response.Text ?? string.Empty;
