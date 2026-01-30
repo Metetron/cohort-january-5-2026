@@ -28,7 +28,7 @@ public static class ImportApi
 
     private static async Task<Results<Ok<ImportResult>, BadRequest<string>>> ImportAsync(
         IFormFile file, [FromForm] string account,
-        CsvImporter csvImporter, ITransactionEnhancer enhancer, BudgetTrackerContext context, 
+        CsvImporter csvImporter, IImageImporter imageImporter, ITransactionEnhancer enhancer, BudgetTrackerContext context, 
         ClaimsPrincipal claimsPrincipal, ICsvStructureDetector detectionService)
     {
         var validationResult = ValidateFileInput(file, account);
@@ -44,24 +44,8 @@ public static class ImportApi
 
             using var stream = file.OpenReadStream();
             
-            var detectionResult = await detectionService.DetectStructureAsync(stream);
-
-            if (detectionResult.ConfidenceScore < 85)
-            {
-                var errorMessage = detectionResult.DetectionMethod == DetectionMethod.AI
-                    ? "Unable to automatically detect CSV structure using AI analysis. Please ensure your CSV contains Date, Description, and Amount columns with recognizable headers."
-                    : "Unable to automatically detect CSV structure. Please ensure your CSV file follows a standard banking format.";
-
-                return TypedResults.BadRequest(errorMessage);
-            }
-
-            stream.Position = 0; // Reset stream position
-            var (importResult, transactions) = await csvImporter.ParseCsvAsync(
-                stream, file.FileName, userId, account, detectionResult);
-
-            // Add detection info to result
-            importResult.DetectionMethod = detectionResult.DetectionMethod.ToString();
-            importResult.DetectionConfidence = detectionResult.ConfidenceScore;
+            var (importResult, transactions, detectionResult) = await ProcessFileAsync(
+                stream, file.FileName, userId, account, csvImporter, imageImporter, detectionService);
 
             if (transactions.Any())
             {
@@ -105,6 +89,52 @@ public static class ImportApi
         {
             return TypedResults.BadRequest(ex.Message);
         }
+    }
+    
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessFileAsync(
+        Stream stream, string fileName, string userId, string account,
+        CsvImporter csvImporter, IImageImporter imageImporter, ICsvStructureDetector detectionService)
+    {
+        var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
+        return fileExtension switch
+        {
+            ".csv" => await ProcessCsvFileAsync(stream, fileName, userId, account, csvImporter, detectionService),
+            ".png" or ".jpg" or ".jpeg" => await ProcessImageFileAsync(stream, fileName, userId, account, imageImporter),
+            _ => throw new InvalidOperationException("Unsupported file type")
+        };
+    }
+
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessCsvFileAsync(Stream stream, string fileName, string userId, string account, CsvImporter csvImporter, ICsvStructureDetector detectionService)
+    {
+        var detectionResult = await detectionService.DetectStructureAsync(stream);
+
+        // if (detectionResult.ConfidenceScore < 85)
+        // {
+        //     var errorMessage = detectionResult.DetectionMethod == DetectionMethod.AI
+        //         ? "Unable to automatically detect CSV structure using AI analysis. Please ensure your CSV contains Date, Description, and Amount columns with recognizable headers."
+        //         : "Unable to automatically detect CSV structure. Please ensure your CSV file follows a standard banking format.";
+        //
+        //     return TypedResults.BadRequest(errorMessage);
+        // }
+
+        stream.Position = 0; // Reset stream position
+        var (importResult, transactions) = await csvImporter.ParseCsvAsync(
+            stream, fileName, userId, account, detectionResult);
+        
+        // Add detection info to result
+        importResult.DetectionMethod = detectionResult.DetectionMethod.ToString();
+        importResult.DetectionConfidence = detectionResult.ConfidenceScore;
+
+        return (importResult, transactions, detectionResult);
+    }
+
+    private static async Task<(ImportResult, List<Transaction>, CsvStructureDetectionResult?)> ProcessImageFileAsync(
+        Stream stream, string fileName, string userId, string account,
+        IImageImporter imageImporter)
+    {
+        var (importResult, transactions) = await imageImporter.ProcessImageAsync(stream, fileName, userId, account);
+
+        return (importResult, transactions, null); // Images don't have CSV detection result
     }
 
     private static async Task<Results<Ok<EnhanceImportResult>, BadRequest<string>>> EnhanceImportAsync(
@@ -185,14 +215,17 @@ public static class ImportApi
             return TypedResults.BadRequest("No file uploaded");
         }
 
-        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-        {
-            return TypedResults.BadRequest("Only CSV files are supported");
-        }
-
         if (file.Length > 10 * 1024 * 1024) // 10MB limit
         {
             return TypedResults.BadRequest("File size exceeds 10MB limit");
+        }
+        
+        var allowedExtensions = new[] { ".csv", ".png", ".jpg", ".jpeg" };
+        var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        
+        if (!allowedExtensions.Contains(fileExtension))
+        {
+            return TypedResults.BadRequest("Only CSV files and images (PNG, JPG, JPEG) are supported.");
         }
 
         if (string.IsNullOrWhiteSpace(account))

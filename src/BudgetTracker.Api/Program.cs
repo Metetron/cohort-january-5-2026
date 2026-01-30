@@ -107,6 +107,7 @@ builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
 builder.Services.AddScoped<ICsvStructureDetector, CsvStructureDetector>();
 builder.Services.AddScoped<ICsvDetector, CsvDetector>();
 builder.Services.AddScoped<ICsvAnalyzer, CsvAnalyzer>();
+builder.Services.AddScoped<IImageImporter, ImageImporter>();
 
 // Register IChatClient for Azure OpenAI
 builder.Services.AddSingleton<IChatClient>(sp =>

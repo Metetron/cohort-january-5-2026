@@ -12,8 +12,8 @@ public static partial class StringExtensions
 
     [GeneratedRegex(@"\{[\s\S]*\}")]
     private static partial Regex JsonObjectRegex();
-    
-    public static string ExtractJsonFromCodeBlock(this string input)
+
+    public static string ExtractJsonArrayFromCodeBlock(this string input)
     {
         var match = MarkdownJsonRegex().Match(input);
 
@@ -21,7 +21,7 @@ public static partial class StringExtensions
         {
             return match.Groups[1].Value;
         }
-
+        
         // Try to find a JSON array directly
         var arrayMatch = JsonArrayRegex().Match(input);
         
@@ -29,10 +29,22 @@ public static partial class StringExtensions
         {
             return arrayMatch.Value;
         }
+        
+        throw new FormatException("Could not extract JSON from the input string");
+    }
 
+    public static string ExtractJsonObjectFromCodeBlock(this string input)
+    {
+        var match = MarkdownJsonRegex().Match(input);
+
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
+        
         // Try to find a JSON object directly
         var objectMatch = JsonObjectRegex().Match(input);
-
+        
         if (objectMatch.Success)
         {
             return objectMatch.Value;

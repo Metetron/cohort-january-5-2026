@@ -112,7 +112,7 @@ public partial class TransactionEnhancer : ITransactionEnhancer
 
         try
         {
-            var jsonContent = content.ExtractJsonFromCodeBlock();
+            var jsonContent = content.ExtractJsonArrayFromCodeBlock();
             var enhancedDescriptions =
                 JsonSerializer.Deserialize<List<EnhancedTransactionDescription>>(jsonContent, JsonOptions);
 

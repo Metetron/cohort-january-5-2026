@@ -58,7 +58,7 @@ public class CsvDetector : ICsvDetector
             }
 
             // Parse AI response
-            var result = ParseAiResponse(responseText.ExtractJsonFromCodeBlock());
+            var result = ParseAiResponse(responseText.ExtractJsonObjectFromCodeBlock());
             result.DetectionMethod = DetectionMethod.AI;
 
             _logger.LogDebug("AI detection completed - confidence: {Confidence}%, method: AI", result.ConfidenceScore);
