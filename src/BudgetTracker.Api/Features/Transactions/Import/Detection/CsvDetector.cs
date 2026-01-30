@@ -18,7 +18,7 @@ public class CsvDetector : ICsvDetector
         _logger = logger;
     }
 
-    public async Task<CsvStructureDetectionResult> DetectStructureAsync(Stream csvStream)
+    public async Task<CsvStructureDetectionResult> AnalyzeCsvStructureAsync(Stream csvStream)
     {
         try
         {
