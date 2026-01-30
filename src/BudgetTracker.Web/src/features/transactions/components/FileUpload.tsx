@@ -5,12 +5,30 @@ import { apiClient } from '../../../api';
 import { transactionsApi } from '../api';
 import type { EnhanceImportResult, ImportResult } from '../types';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
+import {DetectionProgressIndicator} from "./DetectionProgressIndicator.tsx";
+import {DetectionMethodBadge} from "./DetectionMethodBadge.tsx";
 
 interface FileUploadProps {
   className?: string;
 }
 
 type Step = 'upload' | 'preview' | 'complete';
+
+const getErrorMessage = (error: any): string => {
+  const message = error?.message || 'Failed to import the file';
+
+  // Check for detection-related errors
+  if (message.includes('Unable to automatically detect CSV structure')) {
+    return 'Could not detect the CSV format. Please ensure your file has clear column headers (Date, Description, Amount).';
+  }
+
+  if (message.includes('AI analysis')) {
+    return 'AI analysis could not determine the file structure. Try a CSV with standard column names.';
+  }
+
+  return message;
+};
+
 
 function FileUpload({ className = '' }: FileUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -25,7 +43,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
   const [currentStep, setCurrentStep] = useState<Step>('upload');
   const [minConfidenceScore, setMinConfidenceScore] = useState(0.7);
   const [enhanceResult, setEnhanceResult] = useState<EnhanceImportResult | null>(null);
-  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'parsing' | 'enhancing' | 'complete'>('uploading');
+  const [currentPhase, setCurrentPhase] = useState<'uploading' | 'detecting' | 'parsing' | 'enhancing' | 'complete'>('uploading');
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -116,8 +134,10 @@ function FileUpload({ className = '' }: FileUploadProps) {
           setUploadProgress(progress);
 
           // Update phase based on progress
-          if (progress < 30) {
+          if (progress < 20) {
             setCurrentPhase('uploading');
+          } else if (progress < 40) {
+            setCurrentPhase('detecting');
           } else if (progress < 70) {
             setCurrentPhase('parsing');
           } else if (progress < 100) {
@@ -134,10 +154,7 @@ function FileUpload({ className = '' }: FileUploadProps) {
       showSuccess(`Imported ${result.importedCount} transactions - review AI enhancements below`);
     } catch (error) {
       console.error('Import error:', error);
-      let errorMessage = 'Failed to import the CSV file';
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as Error).message;
-      }
+      const errorMessage = getErrorMessage(error);
       showError('Import Failed', errorMessage);
     } finally {
       setIsUploading(false);
@@ -193,14 +210,6 @@ function FileUpload({ className = '' }: FileUploadProps) {
       fileInputRef.current.value = '';
     }
   }, []);
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   return (
     <div className={`space-y-8 ${className}`}>
@@ -366,23 +375,12 @@ function FileUpload({ className = '' }: FileUploadProps) {
           )}
 
           {/* Upload progress */}
-          {isUploading && uploadProgress > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">
-                  {currentPhase === 'uploading' ? 'Uploading file...' :
-                  currentPhase === 'parsing' ? 'Parsing transactions...' :
-                  currentPhase === 'enhancing' ? 'Enhancing with AI...' : 'Finalizing...'}
-                </span>
-                <span className="text-blue-600 font-medium">{uploadProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="h-2 rounded-full bg-blue-600 transition-all"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-            </div>
+          {isUploading && uploadProgress > 0 && selectedFile && (
+              <DetectionProgressIndicator
+                  progress={uploadProgress}
+                  currentPhase={currentPhase}
+                  fileName={selectedFile.name}
+              />
           )}
         </>
       )}
@@ -391,6 +389,17 @@ function FileUpload({ className = '' }: FileUploadProps) {
       {currentStep === 'preview' && importResult && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
+            {/* Detection info */}
+            {importResult.detectionMethod && (
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-6">
+                  <span className="text-sm text-gray-600">CSV Structure Detection</span>
+                  <DetectionMethodBadge
+                      method={importResult.detectionMethod}
+                      confidence={importResult.detectionConfidence !== undefined ? importResult.detectionConfidence * 100 : undefined}
+                  />
+                </div>
+            )}
+            
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">Review AI Enhancements</h3>
