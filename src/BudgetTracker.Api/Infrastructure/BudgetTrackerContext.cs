@@ -2,6 +2,7 @@ using BudgetTracker.Api.Auth;
 using BudgetTracker.Api.Features.Transactions;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Pgvector.EntityFrameworkCore;
 
 namespace BudgetTracker.Api.Infrastructure;
 
@@ -17,6 +18,8 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasPostgresExtension("vector");
+
         modelBuilder.Entity<Transaction>()
             .HasIndex(t => t.Date);
 
@@ -31,6 +34,9 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .HasPrincipalKey(u => u.Id);
+
+            entity.Property(e => e.Embedding)
+                .HasColumnType("vector(1536)");
         });
     }
 }
