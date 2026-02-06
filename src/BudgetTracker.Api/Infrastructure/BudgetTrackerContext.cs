@@ -20,9 +20,6 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
 
         modelBuilder.HasPostgresExtension("vector");
 
-        modelBuilder.Entity<Transaction>()
-            .HasIndex(t => t.Date);
-
         modelBuilder.Entity<Transaction>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -30,13 +27,28 @@ public class BudgetTrackerContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
 
+            entity.Property(e => e.Embedding)
+                .HasColumnType("vector(1536)");
+
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .HasPrincipalKey(u => u.Id);
 
-            entity.Property(e => e.Embedding)
-                .HasColumnType("vector(1536)");
+            entity.HasIndex(t => t.Date);
+
+            entity.HasIndex(t => new { t.UserId, t.Account, t.Date })
+                .HasDatabaseName("IX_Transactions_RagContext")
+                .IsDescending(false, false, true);
+
+            entity.HasIndex(t => t.Category)
+                .HasDatabaseName("IX_Transactions_Category")
+                .HasFilter("\"Category\" IS NOT NULL");
+
+            entity.HasIndex(t => t.Embedding)
+                .HasDatabaseName("IX_Transactions_Embedding")
+                .HasMethod("hnsw")
+                .HasOperators("vector_cosine_ops");
         });
     }
 }

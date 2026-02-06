@@ -43,7 +43,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Add Entity Framework
 builder.Services.AddDbContext<BudgetTrackerContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), o => o.UseVector()));
 
 // Add Auth with multiple schemes
 builder.Services.AddAuthorization(options =>
