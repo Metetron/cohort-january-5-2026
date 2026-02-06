@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using BudgetTracker.Api.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using BudgetTracker.Api.Features.Intelligence.Search;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,6 +105,7 @@ builder.Services.Configure<AzureAiConfiguration>(
     builder.Configuration.GetSection(AzureAiConfiguration.SectionName));
 
 builder.Services.AddScoped<ITransactionEnhancer, TransactionEnhancer>();
+builder.Services.AddScoped<IAzureEmbeddingService, AzureEmbeddingService>();
 builder.Services.AddScoped<ICsvStructureDetector, CsvStructureDetector>();
 builder.Services.AddScoped<ICsvDetector, CsvDetector>();
 builder.Services.AddScoped<ICsvAnalyzer, CsvAnalyzer>();
@@ -126,6 +128,18 @@ builder.Services.AddSingleton<IChatClient>(sp =>
         .GetChatClient(config.DeploymentName)
         .AsIChatClient();
 });
+
+builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp =>
+{
+    var config = sp.GetRequiredService<IOptions<AzureAiConfiguration>>().Value;
+    return new AzureOpenAIClient(
+        new Uri(config.Endpoint),
+        new System.ClientModel.ApiKeyCredential(config.ApiKey))
+        .GetEmbeddingClient(config.EmbeddingDeploymentName)
+        .AsIEmbeddingGenerator();
+});
+
+builder.Services.AddHostedService<EmbeddingBackgroundService>();
 
 var app = builder.Build();
 
