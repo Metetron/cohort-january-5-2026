@@ -10,6 +10,7 @@ using BudgetTracker.Api.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using BudgetTracker.Api.Features.Intelligence.Search;
+using BudgetTracker.Api.Features.Intelligence.Query;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -141,6 +142,9 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp 
 
 builder.Services.AddHostedService<EmbeddingBackgroundService>();
 
+builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
+builder.Services.AddScoped<IQueryAssistantService, QueryAssistantService>();
+
 var app = builder.Build();
 
 // Apply migrations at startup
@@ -177,6 +181,7 @@ app
     .MapGroup("/api")
     .MapAntiForgeryEndpoints()
     .MapAuthEndpoints()
-    .MapTransactionEndpoints();
+    .MapTransactionEndpoints()
+    .MapQueryEndpoints();
 
 app.Run();

@@ -19,7 +19,7 @@ public class SemanticSearchService(
 
         try
         {
-            var queryEmbedding = embeddingService.GenerateEmbeddingAsync(queryText);
+            var queryEmbedding = await embeddingService.GenerateEmbeddingAsync(queryText);
             var vectorString = queryEmbedding.ToString();
 
             var similarTransactions = await context.Transactions
